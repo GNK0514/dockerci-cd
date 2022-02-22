@@ -1,0 +1,26 @@
+node{
+def buildNumber = BUILD_NUMBER
+stage("Git Clone"){
+git url:"https://github.com/GNK0514/java-web-app-docker.git',branch:'master'
+}
+stage("maven clean package"){
+def mavenHome =  tool name: "Maven-3.6.2", type: "maven"
+def mavenCMD = "${mavenHome}/bin/mvn"
+sh "${mavenCMD} clean package"
+}
+stage("Build Docker image"){
+sh "docker build -t gnk0514/java-web-app:${buildNumber} ."
+}
+stage("Docker login and push"){
+withCredentails([string(credentailsId: 'Docker_Hub_pwd',varible:'Docker_Hub_Pwd')]){
+sh "docker login -u gnk0514 -p ${Docker_Repo_Pwd}"
+}
+sh "docker push gnk0514/java-web-app-docker:$(buildnumber)"
+}
+stage("deploy applicatin as Docker countainer in deployment server"){
+sshagent(["Docker_dev_server_SSH"]){
+sh "ssh -o StrictHostKeyChecking=no ubuntu@10.0.0.118 docker rm -f javawebappcountainer"||true"
+sh"ssh -o StrictHostKeyChecking=no ubuntu@10.0.0.118 docker run -d -p 8080:8080 --name javawebappcountainer "docker build -t gnk0514/java-web-app:${buildNumber} ." 
+}
+}
+} 
